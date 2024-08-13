@@ -22,36 +22,46 @@ struct CallFrame {
     usz stack_base;
     usz stack_top;
 }
-fn void Vm.call(Vm* self, String name, ClosureRc* closure, List(<ValueRc*>) upvalues) {
+fn void Vm.call(Vm* self, String name, FunctionRc* function, List(<Value>) args) {
     usz stack_base = self.stack.len();
-    for (int i = 0; i < closure.value.registers; i++) {
-        self.stack.push(rc::init(<Value>)());
+    usz args_len = args.len();
+    for (int i = 0; i < function.value.closure.value.registers; i++) {
+        Value value;
+        if (i < args_len) {
+            value = args.pop_first()!!;
+        }
+        self.stack.push(rc::new(<Value>)(value));
     }
     self.call_stack.push({
         name,
-        rc::clone(<Closure>)(closure),
-        upvalues,
+        rc::clone(<Closure>)(function.value.closure),
+        function.value.upvalues,
         false,
         0,
         0,
         stack_base,
-        stack_base + closure.value.registers
+        stack_base + function.value.closure.value.registers
     });
 }
-fn void Vm.call_dst(Vm* self, String name, ClosureRc* closure, List(<ValueRc*>) upvalues, Register dst) {
+fn void Vm.call_dst(Vm* self, String name, FunctionRc* function, Register dst, List(<Value>) args) {
     usz stack_base = self.stack.len();
-    for (int i = 0; i < closure.value.registers; i++) {
-        self.stack.push(rc::init(<Value>)());
+    usz args_len = args.len();
+    for (int i = 0; i < function.value.closure.value.registers; i++) {
+        Value value;
+        if (i < args_len) {
+            value = args.pop_first()!!;
+        }
+        self.stack.push(rc::new(<Value>)(value));
     }
     self.call_stack.push({
         name,
-        rc::clone(<Closure>)(closure),
-        upvalues,
+        rc::clone(<Closure>)(function.value.closure),
+        function.value.upvalues,
         true,
         dst,
         0,
         stack_base,
-        stack_base + closure.value.registers
+        stack_base + function.value.closure.value.registers
     });
 }
 fn void! Vm.return_0(Vm* self) {
@@ -85,6 +95,10 @@ fn ValueRc* Vm.register(Vm* self, Register reg) {
     CallFrame* call_frame = &self.call_stack[self.call_stack.len()];
     return self.stack[call_frame.stack_base + reg];
 }
+fn ValueRc* Vm.upvalue(Vm* self, char idx) {
+    CallFrame* call_frame = &self.call_stack[self.call_stack.len()];
+    return call_frame.upvalues[idx];
+}
 fn void Vm.register_set(Vm* self, Register dst, ValueRc* value) {
     CallFrame* call_frame = &self.call_stack[self.call_stack.len()];
     self.stack[call_frame.stack_base + dst] = value;
@@ -97,7 +111,9 @@ fn void! Vm.run(Vm* self) {
     }
 }
 fault VmFault {
-    ILLEGAL_BINARY_OPERATION
+    ILLEGAL_BINARY_OPERATION,
+    ILLEGAL_UNARY_OPERATION,
+    CANNOT_CALL_TYPE,
 }
 fn bool! Vm.step(Vm* self) {
     CallFrame* call_frame = &self.call_stack[self.call_stack.len() - 1];
@@ -107,17 +123,118 @@ fn bool! Vm.step(Vm* self) {
     // bytes.print_bytecode();
     call_frame.ip += 1;
     switch (bytes[0]) {
+        case (char) Instruction.CALL0:
+            Register func_src = bytes[1];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call("?", func, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    (*func)(self, args)!;
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
+        case (char) Instruction.CALL0_DST:
+            Register func_src = bytes[1];
+            Register dst = bytes[2];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call_dst("?", func, dst, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    self.register_set(dst, rc::new(<Value>)((*func)(self, args)!));
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
+        case (char) Instruction.CALL1:
+            Register func_src = bytes[1];
+            Register src = bytes[2];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            args.push(*self.register(src).value);
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call("?", func, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    (*func)(self, args)!;
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
+        case (char) Instruction.CALL1_DST:
+            Register func_src = bytes[1];
+            Register src = bytes[2];
+            Register dst = bytes[3];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            args.push(*self.register(src).value);
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call_dst("?", func, dst, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    self.register_set(dst, rc::new(<Value>)((*func)(self, args)!));
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
+        case (char) Instruction.CALL_ARGS:
+            Register func_src = bytes[1];
+            char start = bytes[2];
+            char amount = bytes[3];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            for (Register reg = start; reg < start + amount; reg++) {
+                args.push(*self.register(reg).value);
+            }
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call("?", func, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    (*func)(self, args)!;
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
+        case (char) Instruction.CALL_ARGS_DST:
+            Register func_src = bytes[1];
+            char start = bytes[2];
+            char amount = bytes[3];
+            Register dst = bytes[4];
+            ValueRc* value = self.register(func_src);
+            List(<Value>) args;
+            for (Register reg = start; reg < start + amount; reg++) {
+                args.push(*self.register(reg).value);
+            }
+            switch (value.value.type) {
+                case ValueType.FUNCTION:
+                    FunctionRc* func = value.value.value.function_value;
+                    self.call_dst("?", func, dst, args);
+                case ValueType.NATIVE_FUNCTION:
+                    NativeFunction* func = value.value.value.native_function_value;
+                    self.register_set(dst, rc::new(<Value>)((*func)(self, args)!));
+                default:
+                    return VmFault.CANNOT_CALL_TYPE?;
+            }
+            return false;
         case (char) Instruction.RET0:
             self.return_0()!;
             return false;
         case (char) Instruction.RET:
             self.return_src(bytes[1])!;
-            return false;
-        case (char) Instruction.MOV:
-            Register dst = bytes[1];
-            Register src = bytes[2];
-            ValueRc* value = self.register(src);
-            self.register_set(dst, value);
             return false;
         case (char) Instruction.NULL:
             Register dst = bytes[1];
@@ -170,7 +287,7 @@ fn bool! Vm.step(Vm* self) {
             return false;
         case (char) Instruction.STR:
             Register dst = bytes[1];
-            Register idx = bytes[2];
+            char idx = bytes[2];
             String string = call_frame.closure.value.strings[idx];
             Value value;
             value.type = ValueType.STRING;
@@ -178,9 +295,22 @@ fn bool! Vm.step(Vm* self) {
             ValueRc* value_rc = rc::new(<Value>)(value);
             self.register_set(dst, value_rc);
             return false;
+        case (char) Instruction.VEC:
+            Register dst = bytes[1];
+            char start = bytes[2];
+            char amount = bytes[3];
+            List(<Value>) values;
+            for (Register reg = start; reg < start + amount; reg++) {
+                values.push(*self.register(reg).value);
+            }
+            Value vector;
+            vector.type = ValueType.VECTOR;
+            vector.value.vector_value = mem::new(List(<Value>), values);
+            self.register_set(dst, rc::new(<Value>)(vector));
+            return false;
         case (char) Instruction.FUNC:
             Register dst = bytes[1];
-            Register idx = bytes[2];
+            char idx = bytes[2];
             List(<ValueRc*>) upvalues;
             ClosureRc* closure = call_frame.closure.value.closures[idx];
             foreach (i, upvalue: &closure.value.upvalues ) {
@@ -195,6 +325,37 @@ fn bool! Vm.step(Vm* self) {
             });
             ValueRc* value_rc = rc::new(<Value>)(value);
             self.register_set(dst, value_rc);
+            return false;
+        case (char) Instruction.MOV:
+            Register dst = bytes[1];
+            Register src = bytes[2];
+            ValueRc* value = self.register(src);
+            self.register_set(dst, value);
+            return false;
+        case (char) Instruction.UPVALUE:
+            Register dst = bytes[1];
+            char idx = bytes[2];
+            ValueRc* value = self.upvalue(idx);
+            self.register_set(dst, value);
+            return false;
+        case (char) Instruction.SETUPVALUE:
+            Register idx = bytes[1];
+            Register src = bytes[2];
+            Value value = *self.register(src).value;
+            ValueRc* upvalue = self.upvalue(idx);
+            upvalue.value = mem::new(Value, value);
+            return false;
+        case (char) Instruction.FIELD:
+            Register dst = bytes[1];
+            Register head_src = bytes[2];
+            char idx = bytes[3];
+            // get field
+            return false;
+        case (char) Instruction.SETFIELD:
+            Register head_src = bytes[1];
+            char idx = bytes[2];
+            Register src = bytes[3];
+            // set field
             return false;
         case (char) Instruction.BIN:
             BinaryOperation op = (BinaryOperation) bytes[1];
@@ -375,24 +536,55 @@ fn bool! Vm.step(Vm* self) {
             ValueRc* value_rc = rc::new(<Value>)(value);
             self.register_set(dst, value_rc);
             return false;
+        case (char) Instruction.UN:
+            UnaryOperation op = (UnaryOperation) bytes[1];
+            Register dst = bytes[2];
+            Register right_reg = bytes[4];
+            Value* right = self.register(right_reg).value;
+            Value value;
+            switch (op) {
+                case UnaryOperation.NEG:
+                    switch (right.type) {
+                        case ValueType.INT:
+                            value.type = ValueType.INT;
+                            value.value.int_value = -right.value.int_value;
+                        case ValueType.FLOAT:
+                            value.type = ValueType.FLOAT;
+                            value.value.float_value = -right.value.float_value;
+                        default:
+                            return VmFault.ILLEGAL_UNARY_OPERATION?;
+                    }
+            }
+            ValueRc* value_rc = rc::new(<Value>)(value);
+            self.register_set(dst, value_rc);
+            return false;
     }
     return false;
 }
 
 fn Value! run(Closure closure) {
     Vm vm;
-	Closure phobos = {
-		{},
-		{},
-		{},
-		{},
-		1
-	};
-	vm.call_dst("<phobos>", rc::new(<Closure>)(phobos), {}, 0);
-	vm.call_dst("?", rc::new(<Closure>)(closure), {}, 0);
+    FunctionRc* phobos = rc::new(<Function>)({
+        rc::new(<Closure>)({
+            {},
+            {},
+            {},
+            {},
+            1
+        }),
+        {},
+    });
+    FunctionRc* func = rc::new(<Function>)({
+        rc::new(<Closure>)(closure),
+        {},
+    });
+	vm.call_dst("<phobos>", phobos, 0, {});
+	vm.call_dst("?", func, 0, {});
 	vm.run()!;
 	ValueRc* value_rc = vm.stack[0];
     Value value = *value_rc.value;
 	value_rc.free();
+	phobos.free();
+	func.free();
     return value;
 }

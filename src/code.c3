@@ -40,14 +40,20 @@ enum Instruction : char {
     RET0,
     RET,
 
-    MOV,
     NULL,
     INT,
     FLOAT,
     BOOL,
     CHAR,
     STR,
+    VEC,
     FUNC,
+
+    MOV,
+    UPVALUE,
+    SETUPVALUE,
+    FIELD,
+    SETFIELD,
 
     BIN,
     UN,
@@ -168,6 +174,11 @@ struct Closure {
     ClosureRc*[] closures;
     UpValue[] upvalues;
     usz registers;
+}
+fn void Closure.free(Closure* self) {
+    foreach (i, rc: self.closures) {
+        rc.free();
+    }
 }
 struct UpValue {
     Register register;

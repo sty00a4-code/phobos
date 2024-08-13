@@ -6,7 +6,7 @@ import vm;
 
 def ValueRc = Rc(<Value>);
 def FunctionRc = Rc(<Function>);
-def NativeFunction = fn Value!(Vm*, Value[]);
+def NativeFunction = fn Value!(Vm*, List(<Value>));
 enum ValueType : char {
     NULL,
     INT,
@@ -32,9 +32,27 @@ struct Function {
     ClosureRc* closure;
     List(<ValueRc*>) upvalues;
 }
+fn void Function.free(Function* self) {
+    self.closure.free();
+    foreach (i, rc: self.upvalues) {
+        rc.free();
+    }
+}
 struct Value {
     ValueType type;
     ValueVariant value;
+}
+fn void Value.free(Value* self) {
+    switch (self.type) {
+        case ValueType.VECTOR:
+            foreach (i, value: self.value.vector_value) {
+                value.free();
+            }
+            self.value.vector_value.free();
+        case ValueType.FUNCTION:
+            self.value.function_value.free();
+        default:
+    }
 }
 fn bool Value.to_bool(Value* self) {
     switch (self.type) {

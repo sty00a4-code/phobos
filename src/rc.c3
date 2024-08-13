@@ -23,6 +23,7 @@ fn Rc(<Type>)* clone(Rc(<Type>)* rc) {
 fn void Rc(<Type>).free(Rc(<Type>)* rc) {
     rc.count--;
     if (rc.count == 0) {
+        rc.value.free();
         mem::free(rc);
     }
 }
