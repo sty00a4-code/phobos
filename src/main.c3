@@ -1,30 +1,50 @@
 module phobos;
 import std::io;
+import std::collections::list;
 import vm;
 import rc;
+import position;
 import token;
+import lexer;
 import ast;
 import parser;
 import value;
 import code;
 
-fn void main(String[] args)
+fault ArgumentFault {
+	NO_PATH_PROVIDED
+}
+fn void! main(String[] args)
 {
-	Value! res = vm::run({
-		{
-			code::int_(0x01, 3),
-			code::int_(0x02, 3),
-			code::bin(BinaryOperation.MUL, 0x00, 0x01, 0x02),
-			code::ret(0x00),
-		},
-		{ "hello" },
-		{},
-		{},
-		3,
-	});
-	if (try value = res) {
-		io::printfn("%s", value.to_string());
-	} else if (catch f = res) {
-		io::printfn("%s", f);
+	if (args.len < 2) return ArgumentFault.NO_PATH_PROVIDED?;
+	String path = args[1];
+	DString! text = read_file(path);
+	if (catch f = text) {
+		io::printfn("ERROR: %s", f);
+		return f?;
 	}
+	List(<Located(<Token>)>)! tokens = lexer::lex(text.str_view());
+	if (catch f = tokens) {
+		io::printfn("ERROR: %s", f);
+		return f?;
+	}
+	foreach (token: tokens) {
+		io::printf("%s ", token.value.to_str());
+	}
+	io::printfn("");
+}
+
+fn DString! read_file(String path) {
+	DString text;
+	File file = io::file::open(path, "r")!;
+	while (!file.eof()) {
+		if (try line = io::treadline(&file)) {
+			text.append_chars(line);
+			text.append_char('\n');
+		} else {
+			break;
+		}
+	}
+	file.close()!;
+	return text;
 }

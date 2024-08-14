@@ -22,16 +22,38 @@ union TokenValue {
     String string;
     char char_value;
 }
+const String[] KEYWORDS = {
+    "let",
+};
+macro bool String[].contains(&self, String* value) {
+    foreach(i, element: self) {
+        if (element == *value) return true;
+    }
+    return false;
+}
+fn String Token.to_str(&self) {
+    switch (self.kind) {
+        case TokenKind.IDENT:
+            return self.value.word;
+        case TokenKind.KEYWORD:
+            return self.value.word;
+        case TokenKind.SYMBOL:
+            return self.value.symbol;
+        case TokenKind.INT:
+            return string::new_format("%d", self.value.int_value);
+        case TokenKind.FLOAT:
+            return string::new_format("%f", self.value.float_value);
+        case TokenKind.STRING:
+            return string::new_format("\"%s\"", self.value.string);
+        case TokenKind.CHAR:
+            return string::new_format("'%s'", self.value.char_value);
+    }
+}
 fn Token ident(String ident) {
     Token token;
     token.kind = TokenKind.IDENT;
+    if (KEYWORDS.contains(&ident)) token.kind = TokenKind.KEYWORD;
     token.value.word = ident;
-    return token;
-}
-fn Token keyword(String keyword) {
-    Token token;
-    token.kind = TokenKind.KEYWORD;
-    token.value.word = keyword;
     return token;
 }
 fn Token symbol(String symbol) {
@@ -48,7 +70,7 @@ fn Token int_token(int int_value) {
 }
 fn Token float_token(float float_value) {
     Token token;
-    token.kind = TokenKind.INT;
+    token.kind = TokenKind.FLOAT;
     token.value.float_value = float_value;
     return token;
 }
