@@ -1,5 +1,6 @@
 module vm;
 import std::collections::list;
+import std::collections::map;
 import std::io;
 import std::math;
 import std::core::dstring;

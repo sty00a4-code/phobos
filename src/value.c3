@@ -1,10 +1,12 @@
 module value;
 import std::collections::list;
+import std::collections::object;
 import rc;
 import code;
 import vm;
 
 def ValueRc = Rc(<Value>);
+def ObjectRc = Rc(<Object>);
 def FunctionRc = Rc(<Function>);
 def NativeFunction = fn Value!(Vm*, List(<Value>));
 enum ValueType : char {
@@ -15,6 +17,7 @@ enum ValueType : char {
     CHAR,
     STRING,
     VECTOR,
+    OBJECT,
     FUNCTION,
     NATIVE_FUNCTION,
 }
@@ -25,6 +28,7 @@ union ValueVariant {
     char char_value;
     DString string_value;
     List(<Value>)* vector_value;
+    ObjectRc* object_value;
     FunctionRc* function_value;
     NativeFunction* native_function_value;
 }
@@ -49,6 +53,8 @@ fn void Value.free(Value* self) {
                 value.free();
             }
             self.value.vector_value.free();
+        case ValueType.OBJECT:
+            self.value.object_value.free();
         case ValueType.FUNCTION:
             self.value.function_value.free();
         default:
@@ -91,6 +97,8 @@ fn bool Value.eq(Value* self, Value* other) {
             return self.value.string_value == other.value.string_value;
         case ValueType.VECTOR:
             return self.value.vector_value == other.value.vector_value;
+        case ValueType.OBJECT:
+            return self.value.object_value == other.value.object_value;
         case ValueType.FUNCTION:
             return self.value.function_value == other.value.function_value;
         case ValueType.NATIVE_FUNCTION:
@@ -114,6 +122,8 @@ fn String Value.to_string(Value* self) {
             return self.value.string_value.str_view();
         case ValueType.VECTOR:
             return string::new_format("%s", self.value.vector_value);
+        case ValueType.OBJECT:
+            return string::new_format("obj:%08x", self.value.object_value.value);
         case ValueType.FUNCTION:
             return string::new_format("fn:%08x", self.value.function_value.value);
         case ValueType.NATIVE_FUNCTION:
