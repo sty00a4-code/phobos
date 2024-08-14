@@ -2,6 +2,9 @@ module phobos;
 import std::io;
 import vm;
 import rc;
+import token;
+import ast;
+import parser;
 import value;
 import code;
 
