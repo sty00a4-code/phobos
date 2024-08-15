@@ -2,6 +2,7 @@ module lexer;
 import std::collections::list;
 import std::io;
 import position;
+import located;
 import token;
 
 struct Lexer {
@@ -10,7 +11,7 @@ struct Lexer {
     usz ln;
     usz col;
 }
-fn Position(<Token>) Lexer.pos(&self) {
+fn Position Lexer.pos(&self) {
     return {
         self.ln,
         self.col,
@@ -44,24 +45,24 @@ fn Located(<Token>)! Lexer.next(&self) {
         }
     } while (true);
     char c = self.get()!;
-    Position(<Token>) pos = self.pos();
+    Position pos = self.pos();
     self.advance();
     switch (c) {
-        case '(': return position::located(<Token>)(token::symbol("("), pos);
-        case ')': return position::located(<Token>)(token::symbol(")"), pos);
-        case '[': return position::located(<Token>)(token::symbol("["), pos);
-        case ']': return position::located(<Token>)(token::symbol("]"), pos);
-        case '{': return position::located(<Token>)(token::symbol("{"), pos);
-        case '}': return position::located(<Token>)(token::symbol("}"), pos);
-        case '=': return position::located(<Token>)(token::symbol("="), pos);
-        case '.': return position::located(<Token>)(token::symbol("."), pos);
-        case ',': return position::located(<Token>)(token::symbol(","), pos);
-        case '+': return position::located(<Token>)(token::symbol("+"), pos);
-        case '-': return position::located(<Token>)(token::symbol("-"), pos);
-        case '*': return position::located(<Token>)(token::symbol("*"), pos);
-        case '/': return position::located(<Token>)(token::symbol("/"), pos);
-        case '%': return position::located(<Token>)(token::symbol("%"), pos);
-        case '^': return position::located(<Token>)(token::symbol("^"), pos);
+        case '(': return located::located(<Token>)(token::symbol("("), pos);
+        case ')': return located::located(<Token>)(token::symbol(")"), pos);
+        case '[': return located::located(<Token>)(token::symbol("["), pos);
+        case ']': return located::located(<Token>)(token::symbol("]"), pos);
+        case '{': return located::located(<Token>)(token::symbol("{"), pos);
+        case '}': return located::located(<Token>)(token::symbol("}"), pos);
+        case '=': return located::located(<Token>)(token::symbol("="), pos);
+        case '.': return located::located(<Token>)(token::symbol("."), pos);
+        case ',': return located::located(<Token>)(token::symbol(","), pos);
+        case '+': return located::located(<Token>)(token::symbol("+"), pos);
+        case '-': return located::located(<Token>)(token::symbol("-"), pos);
+        case '*': return located::located(<Token>)(token::symbol("*"), pos);
+        case '/': return located::located(<Token>)(token::symbol("/"), pos);
+        case '%': return located::located(<Token>)(token::symbol("%"), pos);
+        case '^': return located::located(<Token>)(token::symbol("^"), pos);
         case '"':
             DString string;
             do {
@@ -87,7 +88,7 @@ fn Located(<Token>)! Lexer.next(&self) {
                 }
             } while (true);
             self.advance();
-            return position::located(<Token>)(token::string(string.str_view()), pos);
+            return located::located(<Token>)(token::string(string.str_view()), pos);
         default:
             if (c.is_digit()) {
                 DString number;
@@ -113,9 +114,9 @@ fn Located(<Token>)! Lexer.next(&self) {
                             break;
                         }
                     } while (true);
-                    return position::located(<Token>)(token::float_token(number.str_view().to_float()!), pos);
+                    return located::located(<Token>)(token::float_token(number.str_view().to_float()!), pos);
                 }
-                return position::located(<Token>)(token::int_token(number.str_view().to_int()!), pos);
+                return located::located(<Token>)(token::int_token(number.str_view().to_int()!), pos);
             } else if (c.is_alnum() || c == '_') {
                 DString ident;
                 ident.append_char(c);
@@ -128,7 +129,7 @@ fn Located(<Token>)! Lexer.next(&self) {
                         break;
                     }
                 } while (true);
-                return position::located(<Token>)(token::ident(ident.str_view()), pos);
+                return located::located(<Token>)(token::ident(ident.str_view()), pos);
             }
     }
     return LexerFault.BAD_CHAR?;

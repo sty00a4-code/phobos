@@ -4,6 +4,7 @@ import std::collections::list;
 import vm;
 import rc;
 import position;
+import located;
 import token;
 import lexer;
 import ast;

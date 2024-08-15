@@ -49,6 +49,25 @@ fn String Token.to_str(&self) {
             return string::new_format("'%s'", self.value.char_value);
     }
 }
+fn bool Token.eq(&self, Token* other) {
+    if (self.kind != other.kind) return false;
+    switch (self.kind) {
+        case TokenKind.IDENT:
+            return self.value.word == other.value.word;
+        case TokenKind.KEYWORD:
+            return self.value.word == other.value.word;
+        case TokenKind.SYMBOL:
+            return self.value.symbol == other.value.symbol;
+        case TokenKind.INT:
+            return self.value.int_value == other.value.int_value;
+        case TokenKind.FLOAT:
+            return self.value.float_value == other.value.float_value;
+        case TokenKind.STRING:
+            return self.value.string == other.value.string;
+        case TokenKind.CHAR:
+            return self.value.char_value == other.value.char_value;
+    }
+}
 fn Token ident(String ident) {
     Token token;
     token.kind = TokenKind.IDENT;
