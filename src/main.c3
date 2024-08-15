@@ -29,10 +29,13 @@ fn void! main(String[] args)
 		io::printfn("ERROR: %s", f);
 		return f?;
 	}
-	foreach (token: tokens) {
-		io::printf("%s ", token.value.to_str());
+	Parser parser;
+	parser.tokens = tokens;
+	Located(<Statement>)! statement = parser.parse_let();
+	if (catch f = statement) {
+		io::printfn("ERROR: %s", f);
+		return f?;
 	}
-	io::printfn("");
 }
 
 fn DString! read_file(String path) {
