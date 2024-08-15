@@ -66,22 +66,22 @@ fn Located(<Token>)! Lexer.next(&self) {
         case '"':
             DString string;
             do {
-                if (try c = self.get()) {
-                    if (c == '"') break;
-                    if (c == '\\') {
+                if (try next_c = self.get()) {
+                    if (next_c == '"') break;
+                    if (next_c == '\\') {
                         self.advance();
-                        c = self.get()!;
-                        switch (c) {
+                        next_c = self.get()!;
+                        switch (next_c) {
                             case 'n':
-                                c = '\n';
+                                next_c = '\n';
                             case 't':
-                                c = '\t';
+                                next_c = '\t';
                             case 'r':
-                                c = '\r';
+                                next_c = '\r';
                             default:
                         }
                     }
-                    string.append_char(c);
+                    string.append_char(next_c);
                     self.advance();
                 } else {
                     return LexerFault.UNCLOSED_STRING?;
@@ -94,21 +94,21 @@ fn Located(<Token>)! Lexer.next(&self) {
                 DString number;
                 number.append_char(c);
                 do {
-                    if (try c = self.get()) {
-                        if (!c.is_digit()) break;
+                    if (try next_c = self.get()) {
+                        if (!next_c.is_digit()) break;
                         number.append_char(c);
                         self.advance();
                     } else {
                         break;
                     }
                 } while (true);
-                if (try c = self.get()) if (c == '.') {
+                if (try next_c = self.get()) if (next_c == '.') {
                     number.append_char('.');
                     self.advance();
                     do {
-                        if (try c = self.get()) {
-                            if (!c.is_digit()) break;
-                            number.append_char(c);
+                        if (try next_c2 = self.get()) {
+                            if (!next_c2.is_digit()) break;
+                            number.append_char(next_c2);
                             self.advance();
                         } else {
                             break;
@@ -121,7 +121,7 @@ fn Located(<Token>)! Lexer.next(&self) {
                 DString ident;
                 ident.append_char(c);
                 do {
-                    if (try c = self.get()) {
+                    if (try next_c = self.get()) {
                         if (!c.is_alnum() && c != '_') break;
                         ident.append_char(c);
                         self.advance();
