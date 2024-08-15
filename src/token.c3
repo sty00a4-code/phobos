@@ -23,6 +23,9 @@ union TokenValue {
     char char_value;
 }
 const String[] KEYWORDS = {
+    "true",
+    "false",
+    "null",
     "let",
 };
 macro bool String[].contains(&self, String* value) {
@@ -73,6 +76,12 @@ fn Token ident(String ident) {
     token.kind = TokenKind.IDENT;
     if (KEYWORDS.contains(&ident)) token.kind = TokenKind.KEYWORD;
     token.value.word = ident;
+    return token;
+}
+fn Token keyword(String keyword) {
+    Token token;
+    token.kind = TokenKind.KEYWORD;
+    token.value.word = keyword;
     return token;
 }
 fn Token symbol(String symbol) {

@@ -96,7 +96,7 @@ fn Located(<Token>)! Lexer.next(&self) {
                 do {
                     if (try next_c = self.get()) {
                         if (!next_c.is_digit()) break;
-                        number.append_char(c);
+                        number.append_char(next_c);
                         self.advance();
                     } else {
                         break;
@@ -122,8 +122,8 @@ fn Located(<Token>)! Lexer.next(&self) {
                 ident.append_char(c);
                 do {
                     if (try next_c = self.get()) {
-                        if (!c.is_alnum() && c != '_') break;
-                        ident.append_char(c);
+                        if (!next_c.is_alnum() && next_c != '_') break;
+                        ident.append_char(next_c);
                         self.advance();
                     } else {
                         break;

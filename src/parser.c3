@@ -33,7 +33,7 @@ fn Located(<Token>)! Parser.expect(&self, Token expected_token) {
 }
 
 fn Located(<Statement>)! Parser.parse_let(&self) {
-    Position pos = self.expect(token::ident("let"))!.pos;
+    Position pos = self.expect(token::keyword("let"))!.pos;
     Located(<String>) ident = self.parse_ident()!;
     self.expect(token::symbol("="))!;
     Located(<Expression>) expr = self.parse_expr()!;
@@ -123,6 +123,49 @@ fn Located(<Expression>)! Parser.parse_unary(&self, usz layer) {
     return self.parse_unary(layer + 1);
 }
 fn Located(<Atom>)! Parser.parse_atom(&self) {
+    Located(<Token>) token = self.next()!;
+    switch (token.value.kind) {
+        case TokenKind.IDENT:
+            Atom atom;
+            atom.kind = AtomKind.IDENT;
+            atom.value.ident = token.value.value.word;
+            return located::located(<Atom>)(atom, token.pos);
+        case TokenKind.INT:
+            Atom atom;
+            atom.kind = AtomKind.INT;
+            atom.value.int_token = token.value.value.int_value;
+            return located::located(<Atom>)(atom, token.pos);
+        case TokenKind.FLOAT:
+            Atom atom;
+            atom.kind = AtomKind.FLOAT;
+            atom.value.float_token = token.value.value.float_value;
+        case TokenKind.KEYWORD:
+            switch (token.value.value.word) {
+                case "true":
+                    Atom atom;
+                    atom.kind = AtomKind.BOOL;
+                    atom.value.bool_token = true;
+                    return located::located(<Atom>)(atom, token.pos);
+                case "false":
+                    Atom atom;
+                    atom.kind = AtomKind.BOOL;
+                    atom.value.bool_token = false;
+                    return located::located(<Atom>)(atom, token.pos);
+                default:
+                    return ParserFault.UNEXPECTED_TOKEN?;
+            }
+        case TokenKind.CHAR:
+            Atom atom;
+            atom.kind = AtomKind.CHAR;
+            atom.value.char_token = token.value.value.char_value;
+            return located::located(<Atom>)(atom, token.pos);
+        case TokenKind.STRING:
+            Atom atom;
+            atom.kind = AtomKind.CHAR;
+            atom.value.string = token.value.value.string;
+            return located::located(<Atom>)(atom, token.pos);
+        default:
+    }
     return ParserFault.UNEXPECTED_TOKEN?;
 }
 
